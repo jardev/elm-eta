@@ -377,7 +377,6 @@ viewSignIn : Model -> Html Msg
 viewSignIn model =
     div []
         [ Navbar.config NavMsg
-            |> Navbar.withAnimation
             |> Navbar.dark
             |> Navbar.primary
             |> Navbar.brand [ href "/" ] [ text "ETA" ]
@@ -385,9 +384,9 @@ viewSignIn model =
                 [ Navbar.itemLink [ href "/" ] [ text "Sign In" ]
                 ]
             |> Navbar.view model.navState
-        , h1 [] []
+        , p [] []
         , Grid.container []
-            [ Grid.row [ Row.centerXs, Row.middleXs ]
+            [ Grid.row [ Row.centerXs ]
                 [ Grid.col [ Col.xs6 ]
                     [ Card.config [ Card.outlinePrimary ]
                         |> Card.headerH4 [] [ text "Sign In" ]
@@ -407,9 +406,9 @@ viewSignIn model =
 
 viewAuthorized : Html Msg
 viewAuthorized =
-    div [ class "flex" ]
-        [ text "Loading..."
-        , Spinner.spinner [] []
+    div [ class "d-flex min-vh-100 align-items-center justify-content-center" ]
+        [ div [] [ text "Loading..." ]
+        , Spinner.spinner [ Spinner.grow ] []
         ]
 
 
@@ -443,7 +442,6 @@ viewApp model userInfo =
 menu : Model -> UserInfo -> Html Msg
 menu model userInfo =
     Navbar.config NavMsg
-        |> Navbar.withAnimation
         |> Navbar.dark
         |> Navbar.primary
         |> Navbar.brand [ href "/" ] [ text "ETA" ]
