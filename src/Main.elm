@@ -191,7 +191,7 @@ init : Maybe { state : String } -> Url -> Navigation.Key -> ( Model, Cmd Msg )
 init mflags url key =
     let
         redirectUri =
-            { url | query = Nothing, fragment = Nothing }
+            { url | query = Nothing, fragment = Just "/" }
 
         clearUrl =
             Navigation.replaceUrl key (Url.toString redirectUri)
@@ -357,7 +357,11 @@ update msg model =
         ( Done _, ClickedLink req ) ->
             case req of
                 Browser.Internal url ->
-                    ( model, Navigation.pushUrl model.navKey <| Url.toString url )
+                    case url.fragment of
+                        Nothing ->
+                            ( model, Cmd.none )
+                        Just _ ->
+                            ( model, Navigation.pushUrl model.navKey <| Url.toString url )
 
                 Browser.External href ->
                     ( model, Navigation.load href )
