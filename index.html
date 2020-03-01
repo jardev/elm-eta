@@ -52,7 +52,7 @@
     });
 
 
-    app.ports.loadETAs.subscribe(n => {
+    app.ports.loadETAs.subscribe(() => {
         // Subscribe to etas
         const dbRef = firebase.database().ref();
         const etasRef = dbRef.child('etas');
@@ -68,6 +68,12 @@
                 }
             });
         });
+    });
+
+    app.ports.pushNewETA.subscribe(eta => {
+        const dbRef = firebase.database().ref();
+        const etasRef = dbRef.child('etas');
+        etasRef.push().set(eta);
     });
   </script>
 </body>

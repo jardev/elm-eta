@@ -33,6 +33,7 @@ import OAuth
 import OAuth.Implicit as OAuth
 import Task exposing (Task)
 import Time
+import Time.Extra as TimeExtra
 import Url exposing (Protocol(..), Url)
 import Url.Parser as UrlParser exposing ((</>), Parser, top)
 
@@ -60,8 +61,37 @@ type alias Model =
     , timeZone : Time.Zone
     , whatField : String
     , whenField : String
+    , currentTime : Time.Posix
     }
 
+
+
+type alias ETA =
+    { what : String
+    , when : Int
+    , createdAt : Int
+    , userName : String
+    , userPicture : String
+    }
+
+
+type Msg
+    = NoOp
+    | ChangeTimeZone Time.Zone
+    | UrlChange Url
+    | ClickedLink UrlRequest
+    | NavMsg Navbar.State
+    | UserInfoRequested
+    | GotUserInfo (Result Http.Error UserInfo)
+    | SignInRequested
+    | SignOutRequsted
+    | GotRandomBytes (List Int)
+    | GotETA (Result D.Error ETA)
+    | GotAccessToken (Result Http.Error OAuth.AuthorizationSuccess)
+    | UpdateWhatField String
+    | UpdateWhenField String
+    | AddETA
+    | TimeTick Time.Posix
 
 type Page
     = Dashboard
@@ -180,6 +210,7 @@ init mflags url key =
                 , timeZone = Time.utc
                 , whatField = ""
                 , whenField = ""
+                , currentTime = Time.millisToPosix 0
                 }
     in
     case OAuth.parseToken url of
@@ -236,6 +267,8 @@ port arrivedETA : (E.Value -> msg) -> Sub msg
 
 port loadETAs : () -> Cmd msg
 
+port pushNewETA : E.Value -> Cmd msg
+
 
 getUserInfo : Configuration -> OAuth.Token -> Cmd Msg
 getUserInfo { userInfoDecoder, userInfoEndpoint } token =
@@ -250,32 +283,6 @@ getUserInfo { userInfoDecoder, userInfoEndpoint } token =
         }
 
 
-type alias ETA =
-    { what : String
-    , when : Int
-    , createdAt : Int
-    , userName : String
-    , userPicture : String
-    }
-
-
-type Msg
-    = NoOp
-    | ChangeTimeZone Time.Zone
-    | UrlChange Url
-    | ClickedLink UrlRequest
-    | NavMsg Navbar.State
-    | UserInfoRequested
-    | GotUserInfo (Result Http.Error UserInfo)
-    | SignInRequested
-    | SignOutRequsted
-    | GotRandomBytes (List Int)
-    | GotETA (Result D.Error ETA)
-    | GotAccessToken (Result Http.Error OAuth.AuthorizationSuccess)
-    | UpdateWhatField String
-    | UpdateWhenField String
-    | AddETA
-
 
 etaDecoder : D.Decoder ETA
 etaDecoder =
@@ -287,12 +294,27 @@ etaDecoder =
         (D.at [ "user", "picture" ] D.string)
 
 
+etaEncoder : ETA -> E.Value
+etaEncoder eta =
+    E.object
+        [ ( "what", E.string eta.what )
+        , ( "when", E.int eta.when )
+        , ( "created_at", E.int eta.createdAt )
+        , ( "user", E.object
+                [ ("name", E.string eta.userName)
+                , ("picture", E.string eta.userPicture )
+                ]
+            )
+        ]
+
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ Navbar.subscriptions model.navState NavMsg
         , randomBytes GotRandomBytes
         , arrivedETA (D.decodeValue etaDecoder >> GotETA)
+        , Time.every 1000 TimeTick
         ]
 
 
@@ -301,6 +323,11 @@ update msg model =
     case ( model.flow, msg ) of
         ( _, ChangeTimeZone zone ) ->
             ( { model | timeZone = zone }
+            , Cmd.none
+            )
+
+        ( _, TimeTick newTime ) ->
+            ( { model | currentTime = newTime }
             , Cmd.none
             )
 
@@ -348,8 +375,8 @@ update msg model =
             , Cmd.none
             )
 
-        ( Done _, AddETA ) ->
-            addETA model
+        ( Done userInfo , AddETA ) ->
+            addETA model userInfo
 
         ( Done _, NavMsg state ) ->
             ( { model | navState = state }
@@ -360,24 +387,76 @@ update msg model =
             noOp model
 
 
-addETA : Model -> ( Model, Cmd Msg )
-addETA model =
+addETA : Model -> UserInfo -> ( Model, Cmd Msg )
+addETA model user =
     -- Push a new ETA to firebase and then clear inputs
     if String.isEmpty model.whatField then
         ( model, Task.attempt (\_ -> NoOp) (Dom.focus "what-field") )
     else if String.isEmpty model.whenField then
         ( model, Task.attempt (\_ -> NoOp) (Dom.focus "when-field") )
     else
-        ( { model | whatField = "", whenField = "" }
-        , Cmd.batch
-            [ Task.attempt (\_ -> NoOp) (Dom.focus "what-field")
-            , Cmd.none -- Push ETA to firebase
-            ]
-        )
+        let
+            when = convertWhen model model.whenField
+        in
+            case when of
+                Just whenMilliseconds ->
+                    ( { model | whatField = "", whenField = "" }
+                    , Cmd.batch
+                        [ Task.attempt (\_ -> NoOp) (Dom.focus "what-field")
+                        , buildETA model user model.whatField whenMilliseconds |> etaEncoder |> pushNewETA
+                        ]
+                    )
 
-convertWhen : String -> Int
-convertWhen when =
-    0
+                Nothing ->
+                    ( model, Cmd.none )
+
+
+buildETA : Model -> UserInfo -> String -> Int -> ETA
+buildETA model user what when =
+    { what = what
+    , when = when
+    , userName = user.name
+    , userPicture = user.picture
+    , createdAt = Time.posixToMillis model.currentTime
+    }
+
+convertWhen : Model -> String -> Maybe Int
+convertWhen model when =
+    let
+        s = String.split ":" (String.trim when)
+        ( first, rest ) = ( List.head s, List.tail s )
+    in
+        case ( first, rest ) of
+            ( Just firstValue, Just restValue ) ->
+                case List.head restValue of
+                    Just secondValue ->
+                        let
+                            ( hoursMaybeInt, minutesMaybeInt ) =
+                                ( String.toInt firstValue, String.toInt secondValue )
+                        in
+                            case ( hoursMaybeInt, minutesMaybeInt ) of
+                                ( Just hoursInt, Just minutesInt ) ->
+                                    let
+                                        currentParts = TimeExtra.posixToParts model.timeZone model.currentTime
+                                    in
+                                        Just ( TimeExtra.partsToPosix
+                                                model.timeZone
+                                                { currentParts
+                                                | second = 0
+                                                , millisecond = 0
+                                                , hour = hoursInt
+                                                , minute = minutesInt
+                                                }
+                                            |> Time.posixToMillis )
+
+                                ( _, _ ) ->
+                                    Nothing
+                    Nothing ->
+                        Nothing
+            ( _, _ ) ->
+                Nothing
+
+
 
 noOp : Model -> ( Model, Cmd Msg )
 noOp model =
@@ -607,8 +686,9 @@ pageDashboard model =
     [ p [] []
     , Grid.row [ Row.centerLg ]
         [ Grid.col [ Col.lg6 ]
-            [ Card.config [ Card.outlinePrimary ]
-                |> Card.headerH4 [] [ text "Expectations" ]
+            [ h1 [] [ text "Expectations" ]
+            , Card.config [ Card.outlinePrimary ]
+                |> Card.headerH4 [] [ text (displayCurrentTime model) ]
                 |> Card.block []
                     [ Block.custom <|
                         inputETA model.whatField model.whenField
@@ -621,6 +701,15 @@ pageDashboard model =
             ]
         ]
     ]
+
+
+displayCurrentTime : Model -> String
+displayCurrentTime model =
+    let
+        hour = String.fromInt (Time.toHour model.timeZone model.currentTime)
+        minute = String.fromInt (Time.toMinute model.timeZone model.currentTime)
+    in
+        "Current time is " ++ String.padLeft 2 '0' hour ++ ":" ++ String.padLeft 2 '0' minute
 
 
 inputETA : String -> String -> Html Msg
@@ -705,9 +794,9 @@ formatETA tz eta =
 
 formatPosix : Time.Zone -> Time.Posix -> String
 formatPosix tz time =
-    String.pad 2 '0' (String.fromInt (Time.toHour tz time))
+    String.padLeft 2 '0' (String.fromInt (Time.toHour tz time))
         ++ ":"
-        ++ String.pad 2 '0' (String.fromInt (Time.toMinute tz time))
+        ++ String.padLeft 2 '0' (String.fromInt (Time.toMinute tz time))
 
 
 pageHelp : List (Html Msg)

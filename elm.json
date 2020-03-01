@@ -16,6 +16,7 @@
             "elm/time": "1.0.0",
             "elm/url": "1.0.0",
             "ivadzy/bbase64": "1.1.1",
+            "justinmimbs/time-extra": "1.1.0",
             "rundis/elm-bootstrap": "5.2.0",
             "truqu/elm-oauth2": "7.0.0"
         },
@@ -23,9 +24,11 @@
             "avh4/elm-color": "1.0.0",
             "danfishgold/base64-bytes": "1.0.3",
             "elm/file": "1.0.5",
+            "elm/parser": "1.1.0",
             "elm/regex": "1.0.0",
             "elm/virtual-dom": "1.0.2",
             "folkertdev/elm-sha2": "1.0.0",
+            "justinmimbs/date": "3.2.0",
             "rtfeldman/elm-hex": "1.0.0"
         }
     },
