@@ -577,9 +577,9 @@ viewSignIn model =
         [ Navbar.config NavMsg
             |> Navbar.dark
             |> Navbar.primary
-            |> Navbar.brand [ href "/#/" ] [ text "ETA" ]
+            |> Navbar.brand [ href "#/" ] [ text "ETA" ]
             |> Navbar.items
-                [ Navbar.itemLink [ href "/#/" ] [ text "Sign In" ]
+                [ Navbar.itemLink [ href "#/" ] [ text "Sign In" ]
                 ]
             |> Navbar.view model.navState
         , p [] []
@@ -642,10 +642,10 @@ menu model userInfo =
     Navbar.config NavMsg
         |> Navbar.dark
         |> Navbar.primary
-        |> Navbar.brand [ href "/#/" ] [ text "ETA" ]
+        |> Navbar.brand [ href "#/" ] [ text "ETA" ]
         |> Navbar.items
-            [ Navbar.itemLink [ href "/#/" ] [ text "Dashboard" ]
-            , Navbar.itemLink [ href "/#/help" ] [ text "Help" ]
+            [ Navbar.itemLink [ href "#/" ] [ text "Dashboard" ]
+            , Navbar.itemLink [ href "#/help" ] [ text "Help" ]
             ]
         |> Navbar.customItems
             [ Navbar.textItem [ Spacing.ml2Sm ] [ text ("Welcome, " ++ userInfo.name ++ "!") ]
