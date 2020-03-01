@@ -7277,7 +7277,6 @@ var $elm$url$Url$toString = function (url) {
 					_Utils_ap(http, url.host)),
 				url.path)));
 };
-var $author$project$Main$NotFound = {$: 'NotFound'};
 var $author$project$Main$Help = {$: 'Help'};
 var $elm$url$Url$Parser$mapState = F2(
 	function (func, _v0) {
@@ -7359,7 +7358,15 @@ var $author$project$Main$routeParser = $elm$url$Url$Parser$oneOf(
 			$elm$url$Url$Parser$s('help'))
 		]));
 var $author$project$Main$decode = function (url) {
-	return A2($elm$url$Url$Parser$parse, $author$project$Main$routeParser, url);
+	return A2(
+		$elm$url$Url$Parser$parse,
+		$author$project$Main$routeParser,
+		_Utils_update(
+			url,
+			{
+				fragment: $elm$core$Maybe$Nothing,
+				path: A2($elm$core$Maybe$withDefault, '', url.fragment)
+			}));
 };
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $author$project$Main$urlUpdate = F2(
@@ -7369,7 +7376,7 @@ var $author$project$Main$urlUpdate = F2(
 			return _Utils_Tuple2(
 				_Utils_update(
 					model,
-					{page: $author$project$Main$NotFound}),
+					{page: $author$project$Main$Dashboard}),
 				$elm$core$Platform$Cmd$none);
 		} else {
 			var route = _v0.a;
@@ -12627,7 +12634,7 @@ var $author$project$Main$menu = F2(
 							$rundis$elm_bootstrap$Bootstrap$Navbar$itemLink,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$href('/')
+									$elm$html$Html$Attributes$href('/#/')
 								]),
 							_List_fromArray(
 								[
@@ -12637,7 +12644,7 @@ var $author$project$Main$menu = F2(
 							$rundis$elm_bootstrap$Bootstrap$Navbar$itemLink,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$href('/help')
+									$elm$html$Html$Attributes$href('/#/help')
 								]),
 							_List_fromArray(
 								[
@@ -12648,7 +12655,7 @@ var $author$project$Main$menu = F2(
 						$rundis$elm_bootstrap$Bootstrap$Navbar$brand,
 						_List_fromArray(
 							[
-								$elm$html$Html$Attributes$href('/')
+								$elm$html$Html$Attributes$href('/#/')
 							]),
 						_List_fromArray(
 							[
@@ -12883,7 +12890,7 @@ var $author$project$Main$viewSignIn = function (model) {
 							$rundis$elm_bootstrap$Bootstrap$Navbar$itemLink,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$href('/')
+									$elm$html$Html$Attributes$href('/#/')
 								]),
 							_List_fromArray(
 								[
@@ -12894,7 +12901,7 @@ var $author$project$Main$viewSignIn = function (model) {
 						$rundis$elm_bootstrap$Bootstrap$Navbar$brand,
 						_List_fromArray(
 							[
-								$elm$html$Html$Attributes$href('/')
+								$elm$html$Html$Attributes$href('/#/')
 							]),
 						_List_fromArray(
 							[
