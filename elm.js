@@ -7392,7 +7392,10 @@ var $author$project$Main$init = F3(
 	function (mflags, url, key) {
 		var redirectUri = _Utils_update(
 			url,
-			{fragment: $elm$core$Maybe$Nothing, query: $elm$core$Maybe$Nothing});
+			{
+				fragment: $elm$core$Maybe$Just('/'),
+				query: $elm$core$Maybe$Nothing
+			});
 		var clearUrl = A2(
 			$elm$browser$Browser$Navigation$replaceUrl,
 			key,
@@ -9430,12 +9433,17 @@ var $author$project$Main$update = F2(
 						var req = _v0.b.a;
 						if (req.$ === 'Internal') {
 							var url = req.a;
-							return _Utils_Tuple2(
-								model,
-								A2(
-									$elm$browser$Browser$Navigation$pushUrl,
-									model.navKey,
-									$elm$url$Url$toString(url)));
+							var _v8 = url.fragment;
+							if (_v8.$ === 'Nothing') {
+								return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+							} else {
+								return _Utils_Tuple2(
+									model,
+									A2(
+										$elm$browser$Browser$Navigation$pushUrl,
+										model.navKey,
+										$elm$url$Url$toString(url)));
+							}
 						} else {
 							var href = req.a;
 							return _Utils_Tuple2(
@@ -9477,7 +9485,7 @@ var $author$project$Main$update = F2(
 				case 'AddETA':
 					if (_v0.a.$ === 'Done') {
 						var userInfo = _v0.a.a;
-						var _v8 = _v0.b;
+						var _v9 = _v0.b;
 						return A2($author$project$Main$addETA, model, userInfo);
 					} else {
 						break _v0$14;
