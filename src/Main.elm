@@ -8,6 +8,7 @@ import Bootstrap.Card.Block as Block
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
+import Bootstrap.ListGroup as ListGroup
 import Bootstrap.Navbar as Navbar
 import Bootstrap.Spinner as Spinner
 import Bootstrap.Utilities.Spacing as Spacing
@@ -20,10 +21,14 @@ import Delay exposing (TimeUnit(..), after)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Html.Lazy exposing (lazy2)
 import Http
-import Json.Decode as Json exposing (Value)
+import Json.Decode as D
+import Json.Encode as E
 import OAuth
 import OAuth.Implicit as OAuth
+import Task exposing (Task)
+import Time
 import Url exposing (Protocol(..), Url)
 import Url.Parser as UrlParser exposing ((</>), Parser, top)
 
@@ -47,6 +52,8 @@ type alias Model =
     , navState : Navbar.State
     , redirectUri : Url
     , flow : Flow
+    , etas : List ETA
+    , timeZone : Time.Zone
     }
 
 
@@ -66,7 +73,7 @@ type alias UserInfo =
 type alias Configuration =
     { authorizationEndpoint : Url
     , userInfoEndpoint : Url
-    , userInfoDecoder : Json.Decoder UserInfo
+    , userInfoDecoder : D.Decoder UserInfo
     , clientId : String
     , scope : List String
     }
@@ -133,10 +140,10 @@ configuration =
     , userInfoEndpoint =
         { defaultHttpsUrl | host = "jardev.auth0.com", path = "/userinfo" }
     , userInfoDecoder =
-        Json.map3 UserInfo
-            (Json.field "name" Json.string)
-            (Json.field "email" Json.string)
-            (Json.field "picture" Json.string)
+        D.map3 UserInfo
+            (D.field "name" D.string)
+            (D.field "email" D.string)
+            (D.field "picture" D.string)
     , clientId =
         "B24wma3KZIYZojn2ANrMzsOAqIOzwVD6"
     , scope =
@@ -157,12 +164,20 @@ init mflags url key =
             Navbar.initialState NavMsg
 
         ( model, urlCmd ) =
-            urlUpdate url { navKey = key, navState = navState, page = Dashboard, flow = Idle, redirectUri = redirectUri }
+            urlUpdate url
+                { navKey = key
+                , navState = navState
+                , page = Dashboard
+                , flow = Idle
+                , redirectUri = redirectUri
+                , etas = []
+                , timeZone = Time.utc
+                }
     in
     case OAuth.parseToken url of
         OAuth.Empty ->
             ( { model | flow = Idle, redirectUri = redirectUri }
-            , Cmd.none
+            , getTimeZone
             )
 
         OAuth.Success { token, state } ->
@@ -180,13 +195,22 @@ init mflags url key =
 
                     else
                         ( { model | flow = Authorized token, redirectUri = redirectUri }
-                        , Cmd.batch [ after 350 Millisecond UserInfoRequested, clearUrl ]
+                        , Cmd.batch
+                            [ getTimeZone
+                            , after 350 Millisecond UserInfoRequested
+                            , clearUrl
+                            ]
                         )
 
         OAuth.Error error ->
             ( { model | flow = Errored <| ErrAuthorization error, redirectUri = redirectUri }
             , clearUrl
             )
+
+
+getTimeZone : Cmd Msg
+getTimeZone =
+    Task.perform ChangeTimeZone Time.here
 
 
 
@@ -197,6 +221,12 @@ port genRandomBytes : Int -> Cmd msg
 
 
 port randomBytes : (List Int -> msg) -> Sub msg
+
+
+port arrivedETA : (E.Value -> msg) -> Sub msg
+
+
+port loadETAs : () -> Cmd msg
 
 
 getUserInfo : Configuration -> OAuth.Token -> Cmd Msg
@@ -212,8 +242,18 @@ getUserInfo { userInfoDecoder, userInfoEndpoint } token =
         }
 
 
+type alias ETA =
+    { what : String
+    , when : Int
+    , createdAt : Int
+    , userName : String
+    , userPicture : String
+    }
+
+
 type Msg
     = NoOp
+    | ChangeTimeZone Time.Zone
     | UrlChange Url
     | ClickedLink UrlRequest
     | NavMsg Navbar.State
@@ -222,7 +262,18 @@ type Msg
     | SignInRequested
     | SignOutRequsted
     | GotRandomBytes (List Int)
+    | GotETA (Result D.Error ETA)
     | GotAccessToken (Result Http.Error OAuth.AuthorizationSuccess)
+
+
+etaDecoder : D.Decoder ETA
+etaDecoder =
+    D.map5 ETA
+        (D.at [ "what" ] D.string)
+        (D.at [ "when" ] D.int)
+        (D.at [ "created_at" ] D.int)
+        (D.at [ "user", "name" ] D.string)
+        (D.at [ "user", "picture" ] D.string)
 
 
 subscriptions : Model -> Sub Msg
@@ -230,12 +281,18 @@ subscriptions model =
     Sub.batch
         [ Navbar.subscriptions model.navState NavMsg
         , randomBytes GotRandomBytes
+        , arrivedETA (D.decodeValue etaDecoder >> GotETA)
         ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( model.flow, msg ) of
+        ( _, ChangeTimeZone zone ) ->
+            ( { model | timeZone = zone }
+            , Cmd.none
+            )
+
         ( Idle, SignInRequested ) ->
             signInRequested model
 
@@ -250,6 +307,14 @@ update msg model =
 
         ( Done _, SignOutRequsted ) ->
             signOutRequested model
+
+        ( Done _, GotETA res ) ->
+            case res of
+                Ok eta ->
+                    gotEta model eta
+
+                Err _ ->
+                    noOp model
 
         ( Done _, ClickedLink req ) ->
             case req of
@@ -274,6 +339,13 @@ update msg model =
 noOp : Model -> ( Model, Cmd Msg )
 noOp model =
     ( model, Cmd.none )
+
+
+gotEta : Model -> ETA -> ( Model, Cmd Msg )
+gotEta model eta =
+    ( { model | etas = model.etas ++ [ eta ] }
+    , Cmd.none
+    )
 
 
 signInRequested : Model -> ( Model, Cmd Msg )
@@ -329,7 +401,7 @@ gotUserInfo model userInfoResponse =
 
         Ok userInfo ->
             ( { model | flow = Done userInfo }
-            , Cmd.none
+            , loadETAs ()
             )
 
 
@@ -452,7 +524,15 @@ menu model userInfo =
         |> Navbar.customItems
             [ Navbar.textItem [ Spacing.ml2Sm ] [ text ("Welcome, " ++ userInfo.name ++ "!") ]
             , Navbar.formItem []
-                [ Button.button
+                [ img
+                    [ class "rounded-circle"
+                    , src userInfo.picture
+                    , width 32
+                    , height 32
+                    , style "margin-left" "16px"
+                    ]
+                    []
+                , Button.button
                     [ Button.primary
                     , Button.attrs
                         [ Spacing.ml2Sm
@@ -482,29 +562,56 @@ mainContent model =
 pageDashboard : Model -> List (Html Msg)
 pageDashboard model =
     [ h1 [] [ text "ETA Dashboard" ]
-    , Grid.row []
-        [ Grid.col []
+    , Grid.row [ Row.centerXs ]
+        [ Grid.col [ Col.xs8 ]
             [ Card.config [ Card.outlinePrimary ]
-                |> Card.headerH4 [] [ text "Your Expectations" ]
+                |> Card.headerH4 [] [ text "Expectations" ]
                 |> Card.block []
-                    [ Block.text [] [ text "Eta list goes here" ]
-                    , Block.custom <|
-                        Button.linkButton
-                            [ Button.primary, Button.attrs [ href "#dashboard" ] ]
-                            [ text "Dasboard" ]
-                    ]
-                |> Card.view
-            ]
-        , Grid.col []
-            [ Card.config [ Card.outlineSecondary ]
-                |> Card.headerH4 [] [ text "Team Expectations" ]
-                |> Card.block []
-                    [ Block.text [] [ text "Team etas go here" ]
+                    [ Block.custom <|
+                        lazy2 viewETAs model model.etas
                     ]
                 |> Card.view
             ]
         ]
     ]
+
+
+viewETAs : Model -> List ETA -> Html Msg
+viewETAs model etas =
+    ListGroup.ul
+        (List.map (viewETA model) etas)
+
+
+viewETA : Model -> ETA -> ListGroup.Item Msg
+viewETA model eta =
+    ListGroup.li []
+        [ img
+            [ class "rounded-circle"
+            , width 24
+            , height 24
+            , src eta.userPicture
+            , style
+                "margin-right"
+                "5px"
+            ]
+            []
+        , text (eta.userName ++ ": ")
+        , strong [] [ text eta.what ]
+        , text " at "
+        , strong [] [ text (formatETA model.timeZone eta.when) ]
+        ]
+
+
+formatETA : Time.Zone -> Int -> String
+formatETA tz eta =
+    formatPosix tz (Time.millisToPosix eta)
+
+
+formatPosix : Time.Zone -> Time.Posix -> String
+formatPosix tz time =
+    String.pad 2 '0' (String.fromInt (Time.toHour tz time))
+        ++ ":"
+        ++ String.pad 2 '0' (String.fromInt (Time.toMinute tz time))
 
 
 pageHelp : List (Html Msg)

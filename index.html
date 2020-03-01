@@ -11,8 +11,25 @@
 </head>
 
 <body>
-  <script type="text/javascript">
+  <!-- The core Firebase JS SDK is always required and must be listed first -->
+  <script src="https://www.gstatic.com/firebasejs/7.9.3/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.9.3/firebase-database.js"></script>
 
+  <script type="text/javascript">
+    // Firebase
+    var firebaseConfig = {
+      apiKey: "AIzaSyBAlTM9jeN-bVBMJvpjZBs9NvFqzl2HZsE",
+      authDomain: "elm-eta.firebaseapp.com",
+      databaseURL: "https://elm-eta.firebaseio.com",
+      projectId: "elm-eta",
+      storageBucket: "elm-eta.appspot.com",
+      messagingSenderId: "754457526701",
+      appId: "1:754457526701:web:960775a7db9965df522124"
+    };
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+
+    // ELM
     const app = Elm.Main.init({
         flags: rememberedBytes()
     });
@@ -32,6 +49,25 @@
       const bytes = Array.from(buffer);
       localStorage.setItem("bytes", bytes);
       app.ports.randomBytes.send(bytes);
+    });
+
+
+    app.ports.loadETAs.subscribe(n => {
+        // Subscribe to etas
+        const dbRef = firebase.database().ref();
+        const etasRef = dbRef.child('etas');
+        etasRef.on("child_added", snap => {
+            let eta = snap.val();
+            app.ports.arrivedETA.send({
+                what: eta.what,
+                when: eta.when,
+                created_at: eta.created_at,
+                user: {
+                    name: eta.user.name,
+                    picture: eta.user.picture
+                }
+            });
+        });
     });
   </script>
 </body>

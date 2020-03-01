@@ -1,9 +1,9 @@
 # TODO
 
-- [ ] Authentication using GitHub
+- [X] Authentication using GitHub
 - [ ] Publish presence
 - [ ] Announce ETA
-- [ ] Show all etas
+- [X] Show all etas
 
 ## Authentication
 
