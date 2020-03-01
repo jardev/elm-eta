@@ -12,6 +12,8 @@ import Bootstrap.ListGroup as ListGroup
 import Bootstrap.Navbar as Navbar
 import Bootstrap.Spinner as Spinner
 import Bootstrap.Utilities.Spacing as Spacing
+import Bootstrap.Utilities.Flex as Flex
+import Bootstrap.Utilities.Size as Size
 import Browser exposing (UrlRequest)
 import Browser.Navigation as Navigation
 import Bytes exposing (Bytes)
@@ -561,9 +563,9 @@ mainContent model =
 
 pageDashboard : Model -> List (Html Msg)
 pageDashboard model =
-    [ h1 [] [ text "ETA Dashboard" ]
+    [ p [] []
     , Grid.row [ Row.centerXs ]
-        [ Grid.col [ Col.xs8 ]
+        [ Grid.col [ Col.xs6 ]
             [ Card.config [ Card.outlinePrimary ]
                 |> Card.headerH4 [] [ text "Expectations" ]
                 |> Card.block []
@@ -578,27 +580,31 @@ pageDashboard model =
 
 viewETAs : Model -> List ETA -> Html Msg
 viewETAs model etas =
-    ListGroup.ul
+    ListGroup.custom
         (List.map (viewETA model) etas)
 
 
-viewETA : Model -> ETA -> ListGroup.Item Msg
+viewETA : Model -> ETA -> ListGroup.CustomItem Msg
 viewETA model eta =
-    ListGroup.li []
-        [ img
-            [ class "rounded-circle"
-            , width 24
-            , height 24
-            , src eta.userPicture
-            , style
-                "margin-right"
-                "5px"
+    ListGroup.anchor
+        [ ListGroup.attrs [ href "#", Flex.col, Flex.alignItemsStart ] ]
+        [ div [ Flex.block, Flex.justifyBetween, Size.w100 ]
+            [ p [ Spacing.mb1 ]
+                [ img
+                    [ class "rounded-circle"
+                    , width 24
+                    , height 24
+                    , src eta.userPicture
+                    , style
+                        "margin-right"
+                        "5px"
+                    ]
+                    []
+                , text eta.userName
+                ]
+            , small [] [ text (formatETA model.timeZone eta.createdAt) ]
             ]
-            []
-        , text (eta.userName ++ ": ")
-        , strong [] [ text eta.what ]
-        , text " at "
-        , strong [] [ text (formatETA model.timeZone eta.when) ]
+        , h5 [ Spacing.mb1 ] [ text (eta.what ++ " at " ++ (formatETA model.timeZone eta.when) ) ]
         ]
 
 
