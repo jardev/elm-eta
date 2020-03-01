@@ -1,9 +1,12 @@
 # TODO
 
 - [X] Authentication using GitHub
-- [ ] Publish presence
-- [ ] Announce ETA
+- [X] Announce ETA
 - [X] Show all etas
+- [ ] Separate history and active expectations
+- [ ] Add "eta done"
+- [ ] Prolong eta
+
 
 ## Authentication
 

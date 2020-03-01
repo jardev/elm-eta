@@ -55,7 +55,7 @@
     app.ports.loadETAs.subscribe(() => {
         // Subscribe to etas
         const dbRef = firebase.database().ref();
-        const etasRef = dbRef.child('etas');
+        const etasRef = dbRef.child('etas').orderByChild('when').limitToLast(100);
         etasRef.on("child_added", snap => {
             let eta = snap.val();
             app.ports.arrivedETA.send({

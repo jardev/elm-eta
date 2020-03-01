@@ -465,7 +465,7 @@ noOp model =
 
 gotEta : Model -> ETA -> ( Model, Cmd Msg )
 gotEta model eta =
-    ( { model | etas = model.etas ++ [ eta ] }
+    ( { model | etas = eta :: model.etas }
     , Cmd.none
     )
 
@@ -726,7 +726,7 @@ inputETA what when =
             |> InputGroup.view
         , InputGroup.config
             ( InputGroup.text
-                [ Input.placeholder "When"
+                [ Input.placeholder "HH:MM"
                 , Input.attrs [ onInput UpdateWhenField, onEnter AddETA, value when, id "when-field" ]
                 ]
             )
