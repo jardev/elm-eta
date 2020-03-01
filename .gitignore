@@ -1,6 +1,5 @@
 elm-stuff
 repl-temp-*
-elm.js
 *.log
 *~
 .DS_Store
