@@ -12642,7 +12642,7 @@ var $author$project$Main$menu = F2(
 							$rundis$elm_bootstrap$Bootstrap$Navbar$itemLink,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$href('/#/')
+									$elm$html$Html$Attributes$href('#/')
 								]),
 							_List_fromArray(
 								[
@@ -12652,7 +12652,7 @@ var $author$project$Main$menu = F2(
 							$rundis$elm_bootstrap$Bootstrap$Navbar$itemLink,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$href('/#/help')
+									$elm$html$Html$Attributes$href('#/help')
 								]),
 							_List_fromArray(
 								[
@@ -12663,7 +12663,7 @@ var $author$project$Main$menu = F2(
 						$rundis$elm_bootstrap$Bootstrap$Navbar$brand,
 						_List_fromArray(
 							[
-								$elm$html$Html$Attributes$href('/#/')
+								$elm$html$Html$Attributes$href('#/')
 							]),
 						_List_fromArray(
 							[
@@ -12898,7 +12898,7 @@ var $author$project$Main$viewSignIn = function (model) {
 							$rundis$elm_bootstrap$Bootstrap$Navbar$itemLink,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$href('/#/')
+									$elm$html$Html$Attributes$href('#/')
 								]),
 							_List_fromArray(
 								[
@@ -12909,7 +12909,7 @@ var $author$project$Main$viewSignIn = function (model) {
 						$rundis$elm_bootstrap$Bootstrap$Navbar$brand,
 						_List_fromArray(
 							[
-								$elm$html$Html$Attributes$href('/#/')
+								$elm$html$Html$Attributes$href('#/')
 							]),
 						_List_fromArray(
 							[
