@@ -2,7 +2,6 @@ port module Main exposing (..)
 
 import Base64.Encode as Base64
 import Bootstrap.Button as Button
-import Bootstrap.CDN as CDN
 import Bootstrap.Card as Card
 import Bootstrap.Card.Block as Block
 import Bootstrap.Grid as Grid
@@ -11,10 +10,13 @@ import Bootstrap.Grid.Row as Row
 import Bootstrap.ListGroup as ListGroup
 import Bootstrap.Navbar as Navbar
 import Bootstrap.Spinner as Spinner
+import Bootstrap.Form.InputGroup as InputGroup
+import Bootstrap.Form.Input as Input
 import Bootstrap.Utilities.Spacing as Spacing
 import Bootstrap.Utilities.Flex as Flex
 import Bootstrap.Utilities.Size as Size
 import Browser exposing (UrlRequest)
+import Browser.Dom as Dom
 import Browser.Navigation as Navigation
 import Bytes exposing (Bytes)
 import Bytes.Encode as Bytes
@@ -23,7 +25,7 @@ import Delay exposing (TimeUnit(..), after)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy2)
+import Html.Lazy exposing (lazy, lazy2)
 import Http
 import Json.Decode as D
 import Json.Encode as E
@@ -56,6 +58,8 @@ type alias Model =
     , flow : Flow
     , etas : List ETA
     , timeZone : Time.Zone
+    , whatField : String
+    , whenField : String
     }
 
 
@@ -174,6 +178,8 @@ init mflags url key =
                 , redirectUri = redirectUri
                 , etas = []
                 , timeZone = Time.utc
+                , whatField = ""
+                , whenField = ""
                 }
     in
     case OAuth.parseToken url of
@@ -266,6 +272,9 @@ type Msg
     | GotRandomBytes (List Int)
     | GotETA (Result D.Error ETA)
     | GotAccessToken (Result Http.Error OAuth.AuthorizationSuccess)
+    | UpdateWhatField String
+    | UpdateWhenField String
+    | AddETA
 
 
 etaDecoder : D.Decoder ETA
@@ -329,6 +338,19 @@ update msg model =
         ( Done _, UrlChange url ) ->
             urlUpdate url model
 
+        ( Done _, UpdateWhatField value ) ->
+            ( { model | whatField = value }
+            , Cmd.none
+            )
+
+        ( Done _, UpdateWhenField value ) ->
+            ( { model | whenField = value }
+            , Cmd.none
+            )
+
+        ( Done _, AddETA ) ->
+            addETA model
+
         ( Done _, NavMsg state ) ->
             ( { model | navState = state }
             , Cmd.none
@@ -337,6 +359,25 @@ update msg model =
         _ ->
             noOp model
 
+
+addETA : Model -> ( Model, Cmd Msg )
+addETA model =
+    -- Push a new ETA to firebase and then clear inputs
+    if String.isEmpty model.whatField then
+        ( model, Task.attempt (\_ -> NoOp) (Dom.focus "what-field") )
+    else if String.isEmpty model.whenField then
+        ( model, Task.attempt (\_ -> NoOp) (Dom.focus "when-field") )
+    else
+        ( { model | whatField = "", whenField = "" }
+        , Cmd.batch
+            [ Task.attempt (\_ -> NoOp) (Dom.focus "what-field")
+            , Cmd.none -- Push ETA to firebase
+            ]
+        )
+
+convertWhen : String -> Int
+convertWhen when =
+    0
 
 noOp : Model -> ( Model, Cmd Msg )
 noOp model =
@@ -564,10 +605,14 @@ mainContent model =
 pageDashboard : Model -> List (Html Msg)
 pageDashboard model =
     [ p [] []
-    , Grid.row [ Row.centerXs ]
-        [ Grid.col [ Col.xs6 ]
+    , Grid.row [ Row.centerLg ]
+        [ Grid.col [ Col.lg6 ]
             [ Card.config [ Card.outlinePrimary ]
                 |> Card.headerH4 [] [ text "Expectations" ]
+                |> Card.block []
+                    [ Block.custom <|
+                        inputETA model.whatField model.whenField
+                    ]
                 |> Card.block []
                     [ Block.custom <|
                         lazy2 viewETAs model model.etas
@@ -577,6 +622,51 @@ pageDashboard model =
         ]
     ]
 
+
+inputETA : String -> String -> Html Msg
+inputETA what when =
+    div [ Flex.block, Flex.justifyBetween, Size.w100]
+        [ InputGroup.config
+            ( InputGroup.text
+                [ Input.placeholder "What"
+                , Input.attrs [ onInput UpdateWhatField, onEnter AddETA, value what, id "what-field" ]
+                ]
+            )
+            |> InputGroup.predecessors
+                [ InputGroup.span [] [ text "Expect"] ]
+            |> InputGroup.view
+        , InputGroup.config
+            ( InputGroup.text
+                [ Input.placeholder "When"
+                , Input.attrs [ onInput UpdateWhenField, onEnter AddETA, value when, id "when-field" ]
+                ]
+            )
+            |> InputGroup.predecessors
+                [ InputGroup.span [] [ text "@"] ]
+            |> InputGroup.successors
+                [ InputGroup.button
+                    [ Button.success
+                    , Button.attrs
+                        [ onEnter AddETA
+                        , onClick AddETA
+                        ]
+                    ]
+                    [ text "Add" ]
+                ]
+            |> InputGroup.view
+        ]
+
+
+onEnter : Msg -> Attribute Msg
+onEnter msg =
+    let
+        isEnter code =
+            if code == 13 then
+                D.succeed msg
+            else
+                D.fail "not ENTER"
+    in
+        on "keydown" (D.andThen isEnter keyCode)
 
 viewETAs : Model -> List ETA -> Html Msg
 viewETAs model etas =
