@@ -531,7 +531,7 @@ urlUpdate : Url -> Model -> ( Model, Cmd Msg )
 urlUpdate url model =
     case decode url of
         Nothing ->
-            ( { model | page = NotFound }, Cmd.none )
+            ( { model | page = Dashboard }, Cmd.none )
 
         Just route ->
             ( { model | page = route }, Cmd.none )
@@ -539,7 +539,7 @@ urlUpdate url model =
 
 decode : Url -> Maybe Page
 decode url =
-    url
+    { url | path = Maybe.withDefault "" url.fragment, fragment = Nothing }
         |> UrlParser.parse routeParser
 
 
@@ -573,9 +573,9 @@ viewSignIn model =
         [ Navbar.config NavMsg
             |> Navbar.dark
             |> Navbar.primary
-            |> Navbar.brand [ href "/" ] [ text "ETA" ]
+            |> Navbar.brand [ href "/#/" ] [ text "ETA" ]
             |> Navbar.items
-                [ Navbar.itemLink [ href "/" ] [ text "Sign In" ]
+                [ Navbar.itemLink [ href "/#/" ] [ text "Sign In" ]
                 ]
             |> Navbar.view model.navState
         , p [] []
@@ -638,10 +638,10 @@ menu model userInfo =
     Navbar.config NavMsg
         |> Navbar.dark
         |> Navbar.primary
-        |> Navbar.brand [ href "/" ] [ text "ETA" ]
+        |> Navbar.brand [ href "/#/" ] [ text "ETA" ]
         |> Navbar.items
-            [ Navbar.itemLink [ href "/" ] [ text "Dashboard" ]
-            , Navbar.itemLink [ href "/help" ] [ text "Help" ]
+            [ Navbar.itemLink [ href "/#/" ] [ text "Dashboard" ]
+            , Navbar.itemLink [ href "/#/help" ] [ text "Help" ]
             ]
         |> Navbar.customItems
             [ Navbar.textItem [ Spacing.ml2Sm ] [ text ("Welcome, " ++ userInfo.name ++ "!") ]
