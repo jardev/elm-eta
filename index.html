@@ -73,7 +73,9 @@
     app.ports.pushNewETA.subscribe(eta => {
         const dbRef = firebase.database().ref();
         const etasRef = dbRef.child('etas');
-        etasRef.push().set(eta);
+        var objRef = etasRef.push();
+        eta.id = objRef.key;
+        objRef.set(eta);
     });
   </script>
 </body>
